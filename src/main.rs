@@ -1,4 +1,5 @@
 use cgmath::{prelude::*, InnerSpace, SquareMatrix};
+use glam::{Mat4, Vec3, Vec4};
 use image::GenericImageView;
 use wgpu::util::DeviceExt;
 use winit::{
@@ -9,8 +10,15 @@ use winit::{
 
 mod texture;
 
+// #[rustfmt::skip]
+// pub const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::new(
+//     1.0, 0.0, 0.0, 0.0,
+//     0.0, 1.0, 0.0, 0.0,
+//     0.0, 0.0, 0.5, 0.0,
+//     0.0, 0.0, 0.5, 1.0,
+// );
 #[rustfmt::skip]
-pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
+pub const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::from_cols(
     1.0, 0.0, 0.0, 0.0,
     0.0, 1.0, 0.0, 0.0,
     0.0, 0.0, 0.5, 0.0,
@@ -18,9 +26,12 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
 );
 
 struct Camera {
-    eye: cgmath::Point3<f32>,
-    target: cgmath::Point3<f32>,
-    up: cgmath::Vector3<f32>,
+    // eye: cgmath::Point3<f32>,
+    // target: cgmath::Point3<f32>,
+    // up: cgmath::Vector3<f32>,
+    eye: Vec3,
+    target: Vec3,
+    up: Vec3,
     aspect: f32,
     fovy: f32,
     znear: f32,
@@ -28,9 +39,15 @@ struct Camera {
 }
 
 impl Camera {
-    fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
-        let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
-        let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+    // fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
+    //     let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
+    //     let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+
+    //     OPENGL_TO_WGPU_MATRIX * proj * view
+    // }
+    fn build_view_projection_matrix(&self) -> Mat4 {
+        let view = Mat4::look_at_rh(self.eye, self.target, self.up);
+        let proj = Mat4::perspective_rh_gl(self.fovy, self.aspect, self.znear, self.zfar);
 
         OPENGL_TO_WGPU_MATRIX * proj * view
     }
@@ -45,12 +62,12 @@ struct CameraUniform {
 impl CameraUniform {
     fn new() -> Self {
         Self {
-            view_proj: cgmath::Matrix4::identity().into(),
+            view_proj: Mat4::IDENTITY.to_cols_array_2d(),
         }
     }
 
     fn update_view_proj(&mut self, camera: &Camera) {
-        self.view_proj = camera.build_view_projection_matrix().into();
+        self.view_proj = camera.build_view_projection_matrix().to_cols_array_2d();
     }
 }
 
@@ -335,7 +352,7 @@ impl State {
             target: (0.0, 0.0, 0.0).into(),
             up: cgmath::Vector3::unit_y(),
             aspect: config.width as f32 / config.height as f32,
-            fovy: 45.0,
+            fovy: std::f32::consts::FRAC_PI_4,
             znear: 0.1,
             zfar: 100.0,
         };
